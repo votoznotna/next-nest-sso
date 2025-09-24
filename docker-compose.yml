@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # Keycloak Authentication Server
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: dev-file
+    ports:
+      - '8080:8080'
+    command: start-dev
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - app-network
+
+  # PostgreSQL Database (optional - for production use)
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_DB: todoapp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  # NestJS API Backend
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: todo-api
+    environment:
+      - NODE_ENV=development
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=myrealm
+      - KEYCLOAK_CLIENT_ID=my-react-spa
+    ports:
+      - '4000:4000'
+    depends_on:
+      - keycloak
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    networks:
+      - app-network
+    command: npm run start:dev
+
+  # Next.js Frontend
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: todo-web
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_KEYCLOAK_URL=http://localhost:8080
+      - NEXT_PUBLIC_KEYCLOAK_REALM=myrealm
+      - NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=my-react-spa
+      - NEXT_PUBLIC_GRAPHQL_URL=http://localhost:4000/graphql
+    ports:
+      - '3000:3000'
+    depends_on:
+      - api
+      - keycloak
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - app-network
+    command: npm run dev
+
+volumes:
+  keycloak_data:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
