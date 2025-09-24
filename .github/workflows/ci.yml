@@ -66,30 +66,30 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Test Docker Compose configuration
-        run: docker-compose config
+        run: docker compose config
 
       - name: Build Docker images
-        run: docker-compose build --no-cache
+        run: docker compose build --no-cache
 
       - name: Start services
         run: |
-          docker-compose up -d
+          docker compose up -d
           echo "Waiting for services to start..."
           sleep 60
 
       - name: Check service status
         run: |
           echo "=== Service Status ==="
-          docker-compose ps
+          docker compose ps
           echo ""
           echo "=== Keycloak Logs ==="
-          docker-compose logs --tail=20 keycloak
+          docker compose logs --tail=20 keycloak
           echo ""
           echo "=== API Logs ==="
-          docker-compose logs --tail=20 api
+          docker compose logs --tail=20 api
           echo ""
           echo "=== Web Logs ==="
-          docker-compose logs --tail=20 web
+          docker compose logs --tail=20 web
 
       - name: Test service endpoints
         run: |
@@ -104,7 +104,7 @@ jobs:
         continue-on-error: true
 
       - name: Cleanup
-        run: docker-compose down -v
+        run: docker compose down -v
         if: always()
 
   security-scan:
