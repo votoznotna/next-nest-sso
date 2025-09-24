@@ -24,9 +24,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
-      - name: Install root dependencies
-        run: npm ci
-
       - name: Install API dependencies
         run: cd apps/api && npm ci
 
