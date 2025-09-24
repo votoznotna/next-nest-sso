@@ -729,6 +729,35 @@ docker-compose exec web npm run build
 
 ---
 
+## 🔄 CI/CD Pipeline
+
+This project includes a comprehensive GitHub Actions workflow that automatically:
+
+### **Build & Test Pipeline**
+
+- ✅ Tests on Node.js 18.x and 20.x
+- ✅ Installs dependencies and builds both applications
+- ✅ Runs linting and tests (if available)
+- ✅ Performs security audits with npm audit
+
+### **Docker Integration Testing**
+
+- ✅ Validates docker-compose.yml configuration
+- ✅ Builds all Docker images from scratch
+- ✅ Starts the complete stack (Keycloak, API, Web, PostgreSQL)
+- ✅ Tests service health endpoints
+- ✅ Provides comprehensive logging for debugging
+
+### **Security Scanning**
+
+- ✅ Runs npm audit on both API and Web applications
+- ✅ Checks for high-severity vulnerabilities
+- ✅ Continues build even if vulnerabilities are found (for visibility)
+
+The CI pipeline ensures code quality and deployment readiness on every push and pull request.
+
+---
+
 ## 📚 Additional Resources
 
 - [Keycloak Documentation](https://www.keycloak.org/documentation)
