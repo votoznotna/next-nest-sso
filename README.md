@@ -27,10 +27,10 @@ git clone <your-repo>
 cd next-nest-todo-keycloak
 
 # Start all services (Keycloak, API, Web, PostgreSQL)
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 ```
 
 **Services will be available at:**
@@ -315,10 +315,10 @@ KEYCLOAK_AUDIENCE=my-react-spa
 
 ```bash
 # Start all services (Keycloak, API, Web, PostgreSQL)
-docker-compose up -d
+docker compose up -d
 
 # View logs to monitor startup
-docker-compose logs -f keycloak
+docker compose logs -f keycloak
 
 # Wait for Keycloak to be ready, then configure
 ```
@@ -379,13 +379,13 @@ docker-compose logs -f keycloak
 
 ```bash
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # Check service status
-docker-compose ps
+docker compose ps
 
 # View logs for troubleshooting
-docker-compose logs -f
+docker compose logs -f
 ```
 
 #### 2. Test Authentication
@@ -494,53 +494,53 @@ KEYCLOAK_CLIENT_ID=my-react-spa
 
 ```bash
 # Start all services in background
-docker-compose up -d
+docker compose up -d
 
 # Start with logs visible
-docker-compose up
+docker compose up
 
 # Stop all services
-docker-compose down
+docker compose down
 
 # Stop and remove volumes (reset all data)
-docker-compose down -v
+docker compose down -v
 ```
 
 ### Development Workflow
 
 ```bash
 # Start development environment
-docker-compose up -d
+docker compose up -d
 
 # View real-time logs
-docker-compose logs -f
+docker compose logs -f
 
 # Restart specific service
-docker-compose restart api
+docker compose restart api
 
 # Rebuild after code changes
-docker-compose up --build api web
+docker compose up --build api web
 
 # Install new dependencies
-docker-compose exec api npm install
-docker-compose exec web npm install
+docker compose exec api npm install
+docker compose exec web npm install
 ```
 
 ### Monitoring & Debugging
 
 ```bash
 # Check service status
-docker-compose ps
+docker compose ps
 
 # View logs for specific service
-docker-compose logs -f keycloak
-docker-compose logs -f api
-docker-compose logs -f web
-docker-compose logs -f postgres
+docker compose logs -f keycloak
+docker compose logs -f api
+docker compose logs -f web
+docker compose logs -f postgres
 
 # Execute commands in containers
-docker-compose exec api bash
-docker-compose exec web sh
+docker compose exec api bash
+docker compose exec web sh
 
 # View container resource usage
 docker stats
@@ -550,23 +550,23 @@ docker stats
 
 ```bash
 # Nuclear option - reset everything
-docker-compose down -v --rmi all
+docker compose down -v --rmi all
 docker system prune -f
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 ### Production Commands
 
 ```bash
 # Start in production mode
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 # Scale services
-docker-compose up -d --scale api=3
+docker compose up -d --scale api=3
 
 # Update specific service
-docker-compose pull api
-docker-compose up -d api
+docker compose pull api
+docker compose up -d api
 ```
 
 ---
@@ -607,13 +607,13 @@ docker-compose up -d api
 
 ```bash
 # Check if Keycloak is running
-docker-compose ps keycloak
+docker compose ps keycloak
 
 # View Keycloak logs
-docker-compose logs keycloak
+docker compose logs keycloak
 
 # Restart Keycloak if needed
-docker-compose restart keycloak
+docker compose restart keycloak
 ```
 
 **Dependencies missing (TypeScript errors):**
@@ -624,7 +624,7 @@ cd apps/api
 npm install
 
 # Or rebuild the API container
-docker-compose up --build api
+docker compose up --build api
 ```
 
 **Authentication not working:**
@@ -639,10 +639,10 @@ docker-compose up --build api
 
 ```bash
 # Check API logs for token validation errors
-docker-compose logs api
+docker compose logs api
 
 # Verify Keycloak is accessible from API container
-docker-compose exec api curl http://keycloak:8080/realms/myrealm
+docker compose exec api curl http://keycloak:8080/realms/myrealm
 ```
 
 **CORS errors:**
