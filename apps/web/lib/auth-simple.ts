@@ -178,9 +178,9 @@ export async function initKeycloak(onAuth?: (kc: Keycloak) => void) {
   } catch (error) {
     console.error('Simple auth: Failed to initialize Keycloak', error);
     console.error('Simple auth: Error details:', {
-      message: error?.message || 'No message',
-      stack: error?.stack || 'No stack',
-      name: error?.name || 'No name',
+      message: (error as Error)?.message || 'No message',
+      stack: (error as Error)?.stack || 'No stack',
+      name: (error as Error)?.name || 'No name',
       error: error,
     });
 
