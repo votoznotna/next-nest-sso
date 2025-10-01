@@ -14,6 +14,14 @@ A comprehensive demonstration of modern web application architecture featuring *
 - **User Profile Management** - Complete user information from identity provider
 - **Session Management** - Proper login/logout with redirect handling
 
+### 🎨 **User Interface & Experience**
+
+- **Clean, Modern Design** - Simplified, professional Todo interface
+- **Responsive Layout** - Works seamlessly across different screen sizes
+- **Intuitive Controls** - Clear delete buttons with "×" symbols for easy identification
+- **User Avatar** - Personalized interface with user initials
+- **Optimized Styling** - Reliable Tailwind CSS implementation without SVG sizing issues
+
 ### 🏗️ **Modern Architecture**
 
 - **Next.js 15** - Latest React framework with App Router and Server Components
@@ -80,6 +88,31 @@ A comprehensive demonstration of modern web application architecture featuring *
 
 ---
 
+## 🆕 **Recent Updates & Improvements**
+
+### **UI/UX Enhancements (Latest)**
+
+- ✅ **Fixed SVG Sizing Issues** - Resolved oversized icons and buttons in TodoClient component
+- ✅ **Simplified Design** - Clean, professional interface with reliable Tailwind CSS classes
+- ✅ **Improved Delete Buttons** - Clear "×" symbols for intuitive todo deletion
+- ✅ **User Avatar** - Personalized interface showing user initials instead of problematic SVG icons
+- ✅ **Optimized Styling** - Removed complex gradients and animations for better compatibility
+- ✅ **Enhanced Accessibility** - Better focus states and visual feedback
+
+### **Authentication Improvements**
+
+- ✅ **Robust JWT Validation** - Enhanced KeycloakGuard with direct public key fetching
+- ✅ **Better Error Handling** - Improved authentication error messages and fallbacks
+- ✅ **Docker Network Optimization** - Fixed service communication issues
+
+### **Development Experience**
+
+- ✅ **Simplified Setup** - One-command Docker Compose deployment
+- ✅ **Better Documentation** - Comprehensive troubleshooting and setup guides
+- ✅ **CI/CD Pipeline** - Automated testing and security scanning
+
+---
+
 ## 🚀 Quick Start with Docker
 
 ### Prerequisites
@@ -92,9 +125,9 @@ A comprehensive demonstration of modern web application architecture featuring *
 ```bash
 # Clone and start the entire stack
 git clone <your-repo>
-cd next-nest-todo-keycloak
+cd next-nest-sso
 
-# Start all services (Keycloak, API, Web, PostgreSQL)
+# Start all services (Keycloak with auto-configuration, API, Web, PostgreSQL)
 docker compose up -d
 
 # View logs
@@ -108,12 +141,18 @@ docker compose logs -f
 - 🔐 **Keycloak Admin**: http://localhost:8080 (admin/admin)
 - 🗄️ **PostgreSQL**: localhost:5432
 
-### 2) Configure Keycloak (First Time Setup)
+### 2) Automatic Keycloak Configuration
 
-```bash
-# Wait for Keycloak to start, then configure
-# Follow the "Keycloak Configuration" section below
-```
+**✅ No manual setup required!** The Keycloak realm, client, and test user are automatically configured when you run `docker compose up -d`.
+
+The configuration includes:
+
+- **Realm**: `myrealm`
+- **Client**: `my-react-spa` (public client)
+- **Test User**: `testuser` / `password123`
+- **Redirect URIs**: `http://localhost:3000/*`
+
+If you need to modify the configuration, edit `keycloak-realm-config.json` and restart the containers.
 
 ### 3) Test the SSO Flow
 
@@ -219,12 +258,18 @@ The UI gets tokens from Keycloak and attaches `Authorization: Bearer <token>` to
 
    ```ts
    // apps/api/src/auth/jwt.guard.ts
-   import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+   import {
+     CanActivate,
+     ExecutionContext,
+     Injectable,
+     UnauthorizedException,
+   } from '@nestjs/common';
    import * as jwt from 'jsonwebtoken';
    import jwksClient from 'jwks-rsa';
    import { GqlExecutionContext } from '@nestjs/graphql';
 
-   const issuer = process.env.KEYCLOAK_ISSUER || 'http://localhost:8080/realms/myrealm';
+   const issuer =
+     process.env.KEYCLOAK_ISSUER || 'http://localhost:8080/realms/myrealm';
    const audience = process.env.KEYCLOAK_AUDIENCE || 'my-react-spa';
 
    const client = jwksClient({
@@ -252,15 +297,20 @@ The UI gets tokens from Keycloak and attaches `Authorization: Bearer <token>` to
        if (!token) throw new UnauthorizedException('Missing token');
 
        return new Promise((resolve, reject) => {
-         jwt.verify(token, getKey, { algorithms: ['RS256'], audience, issuer }, (err, decoded: any) => {
-           if (err) return reject(new UnauthorizedException('Invalid token'));
-           req.user = {
-             sub: decoded.sub,
-             username: decoded.preferred_username,
-             roles: decoded.realm_access?.roles || [],
-           };
-           resolve(true);
-         });
+         jwt.verify(
+           token,
+           getKey,
+           { algorithms: ['RS256'], audience, issuer },
+           (err, decoded: any) => {
+             if (err) return reject(new UnauthorizedException('Invalid token'));
+             req.user = {
+               sub: decoded.sub,
+               username: decoded.preferred_username,
+               roles: decoded.realm_access?.roles || [],
+             };
+             resolve(true);
+           }
+         );
        }) as any;
      }
    }
@@ -270,7 +320,12 @@ The UI gets tokens from Keycloak and attaches `Authorization: Bearer <token>` to
 
    ```ts
    // apps/api/src/auth/roles.guard.ts
-   import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
+   import {
+     CanActivate,
+     ExecutionContext,
+     Injectable,
+     ForbiddenException,
+   } from '@nestjs/common';
    import { GqlExecutionContext } from '@nestjs/graphql';
 
    @Injectable()
@@ -537,7 +592,9 @@ next-nest-todo-keycloak/
 
 ## 🔧 Environment Variables
 
-### Frontend (`apps/web/.env.local`)
+The project uses environment variables defined directly in the `docker-compose.yml` file for development. For production deployments, you can create separate `.env` files.
+
+### Frontend Environment Variables (in docker-compose.yml)
 
 ```env
 NEXT_PUBLIC_KEYCLOAK_URL=http://localhost:8080
@@ -546,13 +603,15 @@ NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=my-react-spa
 NEXT_PUBLIC_GRAPHQL_URL=http://localhost:4000/graphql
 ```
 
-### Backend (`apps/api/.env`)
+### Backend Environment Variables (in docker-compose.yml)
 
 ```env
-KEYCLOAK_URL=http://localhost:8080
+KEYCLOAK_URL=http://keycloak:8080
 KEYCLOAK_REALM=myrealm
 KEYCLOAK_CLIENT_ID=my-react-spa
 ```
+
+> **Note**: Environment variables are configured directly in `docker-compose.yml` for this development setup. For production, create separate `.env` files in each app directory.
 
 ---
 
@@ -616,10 +675,52 @@ docker stats
 
 ### Complete Reset
 
+#### Option 1: Using the Cleanup Script (Recommended)
+
 ```bash
-# Nuclear option - reset everything
+# Run the comprehensive cleanup script
+./cleanup.sh
+
+# Start fresh after cleanup
+docker compose up -d --build
+```
+
+#### Option 2: Manual Cleanup Commands
+
+```bash
+# Nuclear option - reset everything manually
 docker compose down -v --rmi all
 docker system prune -f
+docker volume prune -f
+docker network prune -f
+docker compose up -d --build
+```
+
+#### Option 3: Step-by-Step Cleanup
+
+```bash
+# Stop and remove all services
+docker compose down
+
+# Remove containers and orphaned containers
+docker compose down --remove-orphans
+
+# Remove volumes (WARNING: This deletes all data)
+docker compose down -v
+
+# Remove all images created by this compose file
+docker compose down --rmi all
+
+# Clean up unused Docker resources
+docker system prune -f
+
+# Remove unused volumes
+docker volume prune -f
+
+# Remove unused networks
+docker network prune -f
+
+# Start fresh
 docker compose up -d --build
 ```
 
@@ -636,6 +737,63 @@ docker compose up -d --scale api=3
 docker compose pull api
 docker compose up -d api
 ```
+
+---
+
+## 🧹 Cleanup & Reset
+
+### Automated Cleanup Script
+
+The project includes a comprehensive cleanup script (`cleanup.sh`) that removes all Docker resources created by this project:
+
+```bash
+# Make the script executable (first time only)
+chmod +x cleanup.sh
+
+# Run the cleanup script
+./cleanup.sh
+```
+
+**What the cleanup script does:**
+
+- ✅ Stops all running containers
+- ✅ Removes all project containers
+- ✅ Removes all project images
+- ✅ Removes all project volumes (⚠️ **WARNING**: This deletes all data)
+- ✅ Removes all project networks
+- ✅ Cleans up unused Docker resources
+- ✅ Provides colored output and progress feedback
+
+### Manual Cleanup Commands
+
+If you prefer to run cleanup commands manually:
+
+```bash
+# Complete cleanup in one command
+docker compose down -v --rmi all --remove-orphans
+docker system prune -f
+docker volume prune -f
+docker network prune -f
+
+# Or step by step
+docker compose down                    # Stop services
+docker compose down --remove-orphans  # Remove containers
+docker compose down -v                # Remove volumes
+docker compose down --rmi all         # Remove images
+docker system prune -f                # Clean unused resources
+```
+
+### When to Use Cleanup
+
+Use the cleanup script when you want to:
+
+- 🆕 Start completely fresh
+- 🐛 Fix persistent issues
+- 💾 Free up disk space
+- 🔄 Reset to initial state
+- 🧪 Test the setup process
+
+> **⚠️ Warning**: The cleanup script removes ALL data including Keycloak configuration, user data, and any todos. Make sure to backup important data before running.
 
 ---
 
@@ -697,11 +855,33 @@ docker compose up --build api
 
 **Authentication not working:**
 
+- **First**: Make sure Keycloak realm is configured (see setup instructions above)
 - Verify redirect URIs match exactly: `http://localhost:3000/*`
 - Check Web origins: `http://localhost:3000`
 - Ensure client is public (not confidential)
 - Check browser console for errors
 - Verify environment variables are loaded
+
+**"Realm does not exist" error:**
+
+```bash
+# Check if Keycloak is running
+curl -s http://localhost:8080/realms/master/.well-known/openid_configuration
+
+# If Keycloak is running but realm doesn't exist, run setup:
+./setup-keycloak.sh
+
+# Or follow manual setup guide:
+# See MANUAL_KEYCLOAK_SETUP.md for detailed instructions
+```
+
+**"Timeout when waiting for 3rd party check iframe message" error:**
+
+This is a common issue with Keycloak's silent check-sso. The application has been updated to handle this gracefully:
+
+- The app will automatically fallback to regular login flow
+- Authentication will still work, just without silent SSO
+- This is normal behavior and doesn't affect functionality
 
 **API returning 401 (Unauthorized):**
 
@@ -730,44 +910,73 @@ docker compose exec api curl http://keycloak:8080/realms/myrealm
 
 ```bash
 # Check all service status
-docker-compose ps
+docker compose ps
 
 # View all logs
-docker-compose logs
+docker compose logs
 
 # Check specific service
-docker-compose logs web
-docker-compose logs api
+docker compose logs web
+docker compose logs api
+```
+
+**Port conflicts (e.g., "port is already allocated"):**
+
+```bash
+# Check what's using a specific port
+lsof -i :5432  # Check PostgreSQL port
+lsof -i :8080  # Check Keycloak port
+lsof -i :3000  # Check Next.js port
+lsof -i :4000  # Check API port
+
+# Stop conflicting containers
+docker ps  # List running containers
+docker stop <container-name>  # Stop the conflicting container
+
+# Alternative: Use different ports in docker-compose.yml
+# Change port mapping from '5432:5432' to '5433:5432'
 ```
 
 ### Reset Everything
 
-```bash
-# Stop and remove all containers and volumes
-docker-compose down -v
+#### Quick Reset (Recommended)
 
-# Remove images (optional - forces rebuild)
-docker-compose down --rmi all
+```bash
+# Use the cleanup script for complete reset
+./cleanup.sh
 
 # Start fresh
-docker-compose up -d --build
+docker compose up -d --build
+```
+
+#### Manual Reset
+
+```bash
+# Stop and remove all containers and volumes
+docker compose down -v
+
+# Remove images (optional - forces rebuild)
+docker compose down --rmi all
+
+# Start fresh
+docker compose up -d --build
 ```
 
 ### Development Tips
 
 ```bash
 # Start only specific services
-docker-compose up keycloak postgres
+docker compose up keycloak postgres
 
 # Run API locally while using Docker Keycloak
 cd apps/api && npm run start:dev
 
 # View real-time logs
-docker-compose logs -f --tail=100
+docker compose logs -f --tail=100
 
 # Execute commands in running containers
-docker-compose exec api npm install
-docker-compose exec web npm run build
+docker compose exec api npm install
+docker compose exec web npm run build
 ```
 
 ---

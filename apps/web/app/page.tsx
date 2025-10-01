@@ -1,23 +1,71 @@
 import TodoClient from '../components/TodoClient';
-import { AuthProvider } from '../lib/AuthProvider';
 import AuthButton from '../components/AuthButton';
 
 export default function Page() {
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-6">
-              <h1 className="text-3xl font-bold text-gray-900">Todo App with Keycloak SSO</h1>
-              <AuthButton />
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
+      }}
+    >
+      <header
+        style={{
+          backgroundColor: 'white',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+          borderBottom: '1px solid #e5e7eb',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: '1280px',
+            margin: '0 auto',
+            padding: '0 24px',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '32px 0',
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <h1
+                style={{
+                  fontSize: '36px',
+                  fontWeight: 'bold',
+                  color: '#111827',
+                  margin: '0 0 8px 0',
+                }}
+              >
+                Todo App
+              </h1>
+              <p
+                style={{
+                  fontSize: '18px',
+                  color: '#6b7280',
+                  fontWeight: '500',
+                  margin: 0,
+                }}
+              >
+                Secure SSO with Keycloak
+              </p>
             </div>
+            <AuthButton />
           </div>
-        </header>
-        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <TodoClient />
-        </main>
-      </div>
-    </AuthProvider>
+        </div>
+      </header>
+      <main
+        style={{
+          maxWidth: '1280px',
+          margin: '0 auto',
+          padding: '48px 24px',
+        }}
+      >
+        <TodoClient />
+      </main>
+    </div>
   );
 }
