@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (kc) {
         const isAuth = kc.authenticated;
         console.log('AuthProvider: Checking auth state:', isAuth);
-        setAuthenticated(isAuth);
+        setAuthenticated(!!isAuth);
         if (isAuth) {
           setUser(getUser());
           setToken(getToken());
@@ -201,7 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const kc = getKeycloak();
     if (kc) {
       const isAuth = kc.authenticated;
-      setAuthenticated(isAuth);
+      setAuthenticated(!!isAuth);
       if (isAuth) {
         setUser(getUser());
         setToken(getToken());
