@@ -258,18 +258,12 @@ The UI gets tokens from Keycloak and attaches `Authorization: Bearer <token>` to
 
    ```ts
    // apps/api/src/auth/jwt.guard.ts
-   import {
-     CanActivate,
-     ExecutionContext,
-     Injectable,
-     UnauthorizedException,
-   } from '@nestjs/common';
+   import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
    import * as jwt from 'jsonwebtoken';
    import jwksClient from 'jwks-rsa';
    import { GqlExecutionContext } from '@nestjs/graphql';
 
-   const issuer =
-     process.env.KEYCLOAK_ISSUER || 'http://localhost:8080/realms/myrealm';
+   const issuer = process.env.KEYCLOAK_ISSUER || 'http://localhost:8080/realms/myrealm';
    const audience = process.env.KEYCLOAK_AUDIENCE || 'my-react-spa';
 
    const client = jwksClient({
@@ -297,20 +291,15 @@ The UI gets tokens from Keycloak and attaches `Authorization: Bearer <token>` to
        if (!token) throw new UnauthorizedException('Missing token');
 
        return new Promise((resolve, reject) => {
-         jwt.verify(
-           token,
-           getKey,
-           { algorithms: ['RS256'], audience, issuer },
-           (err, decoded: any) => {
-             if (err) return reject(new UnauthorizedException('Invalid token'));
-             req.user = {
-               sub: decoded.sub,
-               username: decoded.preferred_username,
-               roles: decoded.realm_access?.roles || [],
-             };
-             resolve(true);
-           }
-         );
+         jwt.verify(token, getKey, { algorithms: ['RS256'], audience, issuer }, (err, decoded: any) => {
+           if (err) return reject(new UnauthorizedException('Invalid token'));
+           req.user = {
+             sub: decoded.sub,
+             username: decoded.preferred_username,
+             roles: decoded.realm_access?.roles || [],
+           };
+           resolve(true);
+         });
        }) as any;
      }
    }
@@ -320,12 +309,7 @@ The UI gets tokens from Keycloak and attaches `Authorization: Bearer <token>` to
 
    ```ts
    // apps/api/src/auth/roles.guard.ts
-   import {
-     CanActivate,
-     ExecutionContext,
-     Injectable,
-     ForbiddenException,
-   } from '@nestjs/common';
+   import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
    import { GqlExecutionContext } from '@nestjs/graphql';
 
    @Injectable()
@@ -555,6 +539,478 @@ docker compose logs -f
 4. **API Calls**: Frontend attaches Bearer token to GraphQL requests
 5. **Token Validation**: Backend validates JWT against Keycloak
 6. **User Context**: User information available in resolvers
+
+---
+
+## 🔐 SSO Authentication Flow with Keycloak
+
+### Complete Request Flow Diagram
+
+This diagram shows the complete SSO authentication flow from login to logout, including all requests and redirects between the browser, Next.js app, Keycloak, and NestJS API.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         SSO LOGIN FLOW (localhost:3000)                         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────┐         ┌──────────┐         ┌──────────┐         ┌──────────┐
+│ Browser  │         │ Next.js  │         │ Keycloak │         │ NestJS   │
+│          │         │ (Web)    │         │ (SSO)    │         │ (API)    │
+│ :3000    │         │ :3000    │         │ :8080    │         │ :4000    │
+└────┬─────┘         └────┬─────┘         └────┬─────┘         └────┬─────┘
+     │                    │                    │                    │
+     │                    │                    │                    │
+┌────┴────────────────────────────────────────────────────────────────────────────┐
+│ STEP 1: User Visits Application (Unauthenticated)                               │
+└──────────────────────────────────────────────────────────────────────────────────┘
+     │                    │                    │                    │
+     │  GET /             │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │  HTML + JS         │                    │                    │
+     │  (AuthProvider)    │                    │                    │
+     │<───────────────────┤                    │                    │
+     │                    │                    │                    │
+     │  initKeycloak()    │                    │                    │
+     │  check-sso         │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │                    │  Check Session     │                    │
+     │                    │  (silent iframe)   │                    │
+     │                    ├───────────────────>│                    │
+     │                    │                    │                    │
+     │                    │  No Session        │                    │
+     │                    │<───────────────────┤                    │
+     │                    │                    │                    │
+     │  Not Authenticated │                    │                    │
+     │  Show Login Button │                    │                    │
+     │<───────────────────┤                    │                    │
+     │                    │                    │                    │
+     │                    │                    │                    │
+┌────┴────────────────────────────────────────────────────────────────────────────┐
+│ STEP 2: User Clicks "Login with Keycloak" Button                                │
+└──────────────────────────────────────────────────────────────────────────────────┘
+     │                    │                    │                    │
+     │  Click Login       │                    │                    │
+     │  Button            │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │  keycloak.login()  │                    │                    │
+     │  Generate PKCE     │                    │                    │
+     │  code_challenge    │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │  Redirect to Keycloak Login            │                    │
+     │  /realms/myrealm/protocol/openid-connect/auth               │
+     │  ?client_id=my-react-spa               │                    │
+     │  &redirect_uri=http://localhost:3000   │                    │
+     │  &response_type=code                   │                    │
+     │  &code_challenge=...                   │                    │
+     │  &code_challenge_method=S256           │                    │
+     ├────────────────────────────────────────>│                    │
+     │                    │                    │                    │
+     │  Keycloak Login Page                   │                    │
+     │<────────────────────────────────────────┤                    │
+     │                    │                    │                    │
+     │                    │                    │                    │
+┌────┴────────────────────────────────────────────────────────────────────────────┐
+│ STEP 3: User Enters Credentials in Keycloak                                     │
+└──────────────────────────────────────────────────────────────────────────────────┘
+     │                    │                    │                    │
+     │  POST /login       │                    │                    │
+     │  username=testuser │                    │                    │
+     │  password=password123                   │                    │
+     ├────────────────────────────────────────>│                    │
+     │                    │                    │                    │
+     │                    │  Validate Credentials                   │
+     │                    │  Create Session    │                    │
+     │                    │  Generate Auth Code│                    │
+     │                    │                    │                    │
+     │  Redirect to App with Auth Code        │                    │
+     │  http://localhost:3000                 │                    │
+     │  ?code=AUTH_CODE                       │                    │
+     │  &state=...                            │                    │
+     │<────────────────────────────────────────┤                    │
+     │                    │                    │                    │
+     │                    │                    │                    │
+┌────┴────────────────────────────────────────────────────────────────────────────┐
+│ STEP 4: Exchange Authorization Code for Tokens                                  │
+└──────────────────────────────────────────────────────────────────────────────────┘
+     │                    │                    │                    │
+     │  GET /?code=...    │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │  keycloak.init()   │                    │                    │
+     │  Detect auth code  │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │                    │  POST /token       │                    │
+     │                    │  grant_type=authorization_code          │
+     │                    │  code=AUTH_CODE    │                    │
+     │                    │  code_verifier=... │                    │
+     │                    │  client_id=my-react-spa                 │
+     │                    ├───────────────────>│                    │
+     │                    │                    │                    │
+     │                    │  Validate Code     │                    │
+     │                    │  Verify PKCE       │                    │
+     │                    │  Generate Tokens   │                    │
+     │                    │                    │                    │
+     │                    │  {                 │                    │
+     │                    │    access_token: "eyJhbGc...",          │
+     │                    │    id_token: "eyJhbGc...",              │
+     │                    │    refresh_token: "eyJhbGc...",         │
+     │                    │    token_type: "Bearer",                │
+     │                    │    expires_in: 300                      │
+     │                    │  }                 │                    │
+     │                    │<───────────────────┤                    │
+     │                    │                    │                    │
+     │  Store Tokens      │                    │                    │
+     │  Parse User Info   │                    │                    │
+     │  authenticated=true│                    │                    │
+     │<───────────────────┤                    │                    │
+     │                    │                    │                    │
+     │  Show User Profile │                    │                    │
+     │  & Todo Interface  │                    │                    │
+     │<───────────────────┤                    │                    │
+     │                    │                    │                    │
+     │                    │                    │                    │
+┌────┴────────────────────────────────────────────────────────────────────────────┐
+│ STEP 5: Making Authenticated API Requests                                       │
+└──────────────────────────────────────────────────────────────────────────────────┘
+     │                    │                    │                    │
+     │  Create Todo       │                    │                    │
+     │  (User Action)     │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │  GraphQL Mutation  │                    │                    │
+     │  POST /graphql     │                    │                    │
+     │  Authorization: Bearer eyJhbGc...       │                    │
+     │  { mutation: createTodo(...) }          │                    │
+     ├─────────────────────────────────────────────────────────────>│
+     │                    │                    │                    │
+     │                    │                    │  Extract Token     │
+     │                    │                    │  from Header       │
+     │                    │                    │                    │
+     │                    │                    │  Fetch JWKS        │
+     │                    │                    │  Public Keys       │
+     │                    │                    ├───────────────────>│
+     │                    │                    │                    │
+     │                    │                    │  Public Keys       │
+     │                    │                    │<───────────────────┤
+     │                    │                    │                    │
+     │                    │                    │  Verify JWT        │
+     │                    │                    │  Signature         │
+     │                    │                    │  Check Expiry      │
+     │                    │                    │  Validate Issuer   │
+     │                    │                    │  Validate Audience │
+     │                    │                    │                    │
+     │                    │                    │  Extract User Info │
+     │                    │                    │  from Token        │
+     │                    │                    │  (sub, username,   │
+     │                    │                    │   roles, etc.)     │
+     │                    │                    │                    │
+     │                    │                    │  Execute Mutation  │
+     │                    │                    │  with User Context │
+     │                    │                    │                    │
+     │  { data: { createTodo: {...} } }       │                    │
+     │<─────────────────────────────────────────────────────────────┤
+     │                    │                    │                    │
+     │  Update UI         │                    │                    │
+     │<───────────────────┤                    │                    │
+     │                    │                    │                    │
+     │                    │                    │                    │
+┌────┴────────────────────────────────────────────────────────────────────────────┐
+│ STEP 6: Token Refresh (Automatic, every 10 seconds)                             │
+└──────────────────────────────────────────────────────────────────────────────────┘
+     │                    │                    │                    │
+     │  Token Refresh     │                    │                    │
+     │  Timer Triggered   │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │                    │  POST /token       │                    │
+     │                    │  grant_type=refresh_token               │
+     │                    │  refresh_token=... │                    │
+     │                    │  client_id=my-react-spa                 │
+     │                    ├───────────────────>│                    │
+     │                    │                    │                    │
+     │                    │  New Tokens        │                    │
+     │                    │  {                 │                    │
+     │                    │    access_token: "new_token...",        │
+     │                    │    refresh_token: "new_refresh...",     │
+     │                    │    expires_in: 300 │                    │
+     │                    │  }                 │                    │
+     │                    │<───────────────────┤                    │
+     │                    │                    │                    │
+     │  Tokens Updated    │                    │                    │
+     │<───────────────────┤                    │                    │
+     │                    │                    │                    │
+     │                    │                    │                    │
+┌────┴────────────────────────────────────────────────────────────────────────────┐
+│ STEP 7: User Clicks Logout Button                                               │
+└──────────────────────────────────────────────────────────────────────────────────┘
+     │                    │                    │                    │
+     │  Click Logout      │                    │                    │
+     │  Button            │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │  logout()          │                    │                    │
+     │  Clear Local State │                    │                    │
+     │  Clear Storage     │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │  Clear localStorage│                    │                    │
+     │  Clear sessionStorage                   │                    │
+     │  Clear Cookies     │                    │                    │
+     │<───────────────────┤                    │                    │
+     │                    │                    │                    │
+     │  resetKeycloak()   │                    │                    │
+     │  Clear Keycloak    │                    │                    │
+     │  Instance          │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │  Redirect to /     │                    │                    │
+     │  (Home Page)       │                    │                    │
+     │<───────────────────┤                    │                    │
+     │                    │                    │                    │
+     │  GET /             │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │  Fresh Page Load   │                    │                    │
+     │  Not Authenticated │                    │                    │
+     │  Show Login Button │                    │                    │
+     │<───────────────────┤                    │                    │
+     │                    │                    │                    │
+     │                    │                    │                    │
+┌────┴────────────────────────────────────────────────────────────────────────────┐
+│ ALTERNATIVE: Server-Side Logout (Optional - Currently Client-Side Only)         │
+└──────────────────────────────────────────────────────────────────────────────────┘
+     │                    │                    │                    │
+     │  keycloak.logout() │                    │                    │
+     │  (if enabled)      │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │  Redirect to Keycloak Logout           │                    │
+     │  /realms/myrealm/protocol/openid-connect/logout             │
+     │  ?redirect_uri=http://localhost:3000   │                    │
+     ├────────────────────────────────────────>│                    │
+     │                    │                    │                    │
+     │                    │  Invalidate Session│                    │
+     │                    │  Clear SSO Cookies │                    │
+     │                    │                    │                    │
+     │  Redirect to App   │                    │                    │
+     │  http://localhost:3000                 │                    │
+     │<────────────────────────────────────────┤                    │
+     │                    │                    │                    │
+     │  GET /             │                    │                    │
+     ├───────────────────>│                    │                    │
+     │                    │                    │                    │
+     │  Fresh Page Load   │                    │                    │
+     │  Not Authenticated │                    │                    │
+     │<───────────────────┤                    │                    │
+     │                    │                    │                    │
+```
+
+### Key Components and Their Roles
+
+#### 1. **Browser (User's Web Browser)**
+
+- Initiates all user actions (visiting site, clicking login/logout)
+- Stores tokens in memory (via Keycloak.js)
+- Handles redirects between app and Keycloak
+- Executes JavaScript authentication logic
+
+#### 2. **Next.js Web App (localhost:3000)**
+
+- **AuthProvider.tsx**: React context managing authentication state
+- **auth-simple.ts**: Keycloak client initialization and configuration
+- **AuthButton.tsx**: UI component for login/logout actions
+- **apollo.ts**: GraphQL client with automatic token attachment
+- Handles PKCE code generation and verification
+- Manages token storage and refresh
+
+#### 3. **Keycloak SSO Server (localhost:8080)**
+
+- **Realm**: `myrealm` - isolated authentication domain
+- **Client**: `my-react-spa` - public client configuration
+- Provides login/registration pages
+- Issues JWT tokens (access, ID, refresh)
+- Validates credentials against user database
+- Manages SSO sessions across applications
+- Provides JWKS endpoint for token verification
+
+#### 4. **NestJS API (localhost:4000)**
+
+- **KeycloakGuard**: JWT validation middleware
+- Fetches public keys from Keycloak JWKS endpoint
+- Verifies token signature, expiry, issuer, and audience
+- Extracts user information from validated tokens
+- Protects GraphQL resolvers with authentication
+- Provides user context to business logic
+
+### Authentication Flow Details
+
+#### **Login Flow (Steps 1-4)**
+
+1. **Initial Visit**: User visits app → AuthProvider checks for existing session
+2. **Silent Check**: Attempts silent SSO check via iframe (may timeout, that's OK)
+3. **Login Click**: User clicks "Login with Keycloak" button
+4. **PKCE Generation**: App generates code_challenge for security
+5. **Redirect to Keycloak**: Browser redirected to Keycloak login page
+6. **User Authentication**: User enters credentials (testuser/password123)
+7. **Authorization Code**: Keycloak validates and returns auth code
+8. **Token Exchange**: App exchanges code for JWT tokens using PKCE verifier
+9. **Store Tokens**: Tokens stored in memory, user marked as authenticated
+
+#### **API Request Flow (Step 5)**
+
+1. **User Action**: User creates/updates/deletes a todo
+2. **GraphQL Request**: Apollo Client sends mutation with Bearer token
+3. **Token Extraction**: NestJS extracts token from Authorization header
+4. **JWKS Fetch**: API fetches Keycloak's public keys (cached)
+5. **Token Validation**: Verifies signature, expiry, issuer, audience
+6. **User Context**: Extracts user info (sub, username, roles) from token
+7. **Execute Operation**: Resolver executes with authenticated user context
+8. **Return Response**: Data returned to client, UI updated
+
+#### **Token Refresh Flow (Step 6)**
+
+1. **Timer Trigger**: Every 10 seconds, check if token needs refresh
+2. **Refresh Request**: Send refresh_token to Keycloak
+3. **New Tokens**: Receive new access_token and refresh_token
+4. **Update Storage**: Replace old tokens with new ones
+5. **Continue**: User session continues seamlessly
+
+#### **Logout Flow (Step 7)**
+
+**Current Implementation (Client-Side):**
+
+1. **Logout Click**: User clicks logout button
+2. **Clear State**: AuthProvider clears authentication state
+3. **Clear Storage**: Remove all localStorage, sessionStorage, cookies
+4. **Reset Keycloak**: Clear Keycloak instance to force fresh login
+5. **Redirect Home**: Navigate to home page (unauthenticated)
+6. **Fresh Start**: Next login will require credentials again
+
+**Alternative (Server-Side - Optional):**
+
+1. **Keycloak Logout**: Redirect to Keycloak logout endpoint
+2. **Session Invalidation**: Keycloak clears SSO session
+3. **Redirect Back**: Return to app with clean state
+
+### Security Features
+
+#### **PKCE (Proof Key for Code Exchange)**
+
+- Protects against authorization code interception
+- Code challenge sent with auth request
+- Code verifier sent with token exchange
+- Prevents replay attacks
+
+#### **JWT Token Validation**
+
+- **Signature**: Verified using Keycloak's public keys (RS256)
+- **Expiry**: Checked against current time (exp claim)
+- **Issuer**: Must match Keycloak realm URL
+- **Audience**: Must match client ID (my-react-spa)
+- **Claims**: User info extracted from validated token
+
+#### **Token Lifecycle**
+
+- **Access Token**: 5 minutes (300 seconds)
+- **Refresh Token**: Used to get new access tokens
+- **Automatic Refresh**: Every 10 seconds if token expires soon
+- **Secure Storage**: Tokens kept in memory, not localStorage
+
+### Environment Configuration
+
+#### **Frontend (.env.local)**
+
+```env
+NEXT_PUBLIC_KEYCLOAK_URL=http://localhost:8080
+NEXT_PUBLIC_KEYCLOAK_REALM=myrealm
+NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=my-react-spa
+NEXT_PUBLIC_GRAPHQL_URL=http://localhost:4000/graphql
+```
+
+#### **Backend (.env)**
+
+```env
+KEYCLOAK_URL=http://keycloak:8080
+KEYCLOAK_REALM=myrealm
+KEYCLOAK_CLIENT_ID=my-react-spa
+```
+
+#### **Keycloak Client Settings**
+
+- **Client Type**: Public (no client secret)
+- **Standard Flow**: Enabled (Authorization Code)
+- **Direct Access Grants**: Enabled
+- **Implicit Flow**: Enabled (for silent check-sso)
+- **Valid Redirect URIs**: `http://localhost:3000/*`
+- **Web Origins**: `http://localhost:3000`
+- **Post Logout Redirect URIs**: `http://localhost:3000/*`
+
+### Common Scenarios
+
+#### **First-Time User**
+
+1. Visit app → See login button
+2. Click login → Redirected to Keycloak
+3. No account → Click "Register"
+4. Fill registration form → Create account
+5. Automatically logged in → Redirected to app
+6. Can now use todo features
+
+#### **Returning User**
+
+1. Visit app → Silent SSO check
+2. If session exists → Automatically authenticated
+3. If no session → Show login button
+4. Login with credentials → Access granted
+
+#### **Multiple Tabs**
+
+1. Login in Tab 1 → Authenticated
+2. Open Tab 2 → Automatically authenticated (SSO)
+3. Logout in Tab 1 → Tab 2 still shows authenticated (until refresh)
+4. Refresh Tab 2 → Now unauthenticated
+
+#### **Token Expiry**
+
+1. Access token expires (5 minutes)
+2. Automatic refresh triggered
+3. New tokens obtained seamlessly
+4. User continues working without interruption
+
+### Troubleshooting Common Issues
+
+#### **"Timeout when waiting for 3rd party check iframe message"**
+
+- **Cause**: Silent SSO check timeout (normal behavior)
+- **Impact**: None - app falls back to regular login
+- **Solution**: No action needed, this is expected
+
+#### **"Invalid redirect_uri"**
+
+- **Cause**: Redirect URI mismatch in Keycloak client
+- **Solution**: Ensure `http://localhost:3000/*` is in Valid Redirect URIs
+
+#### **"401 Unauthorized" from API**
+
+- **Cause**: Token validation failed
+- **Check**: Token expiry, issuer, audience, JWKS endpoint accessibility
+- **Solution**: Verify Keycloak is running and accessible from API container
+
+#### **"CORS error"**
+
+- **Cause**: Missing CORS configuration
+- **Solution**: Ensure API allows origin `http://localhost:3000` with credentials
+
+#### **Logout doesn't work**
+
+- **Current**: Client-side logout clears local state only
+- **Behavior**: Next login requires credentials (forced by `prompt: 'login'`)
+- **Alternative**: Enable server-side logout for full SSO session termination
 
 ---
 
